@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/stylesheets/style.css">
+  </head>
+
+  <body>
+    <h1><%= title %></h1>
+    <p>O evento foi cadastrado com sucesso!</p>
+
+    <h2>Resumo do Evento</h2>
+    <ul>
+      <li><strong>Título:</strong> <%= data.titulo %></li>
+      <li><strong>Descrição:</strong> <%= data.descricao %></li>
+      <li><strong>Data:</strong> 
+        <%= data.data instanceof Date ? data.data.toLocaleDateString('pt-BR') : data.data %>
+      </li>
+      <li><strong>Hora:</strong> <%= data.hora %></li>
+      <li><strong>Categoria:</strong> <%= data.categoria %></li>
+      <li><strong>Vagas:</strong> <%= data.vagas %></li>
+
+      <% if (Array.isArray(data.publico) && data.publico.length) { %>
+        <li><strong>Público-alvo:</strong> <%= data.publico.join(', ') %></li>
+      <% } %>
+
+      <% if (data.site) { %>
+        <li><strong>Site oficial:</strong> <a href="<%= data.site %>" target="_blank"><%= data.site %></a></li>
+      <% } %>
+    </ul>
+
+    <p>
+      <a href="/event">Cadastrar outro evento</a> |
+      <a href="/">Voltar à Home</a>
+    </p>
+  </body>
+</html>

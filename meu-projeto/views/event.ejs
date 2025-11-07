@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/stylesheets/style.css" />
+    <style>
+      .error { color: #b00020; font-size: 0.9em; }
+      .field { margin-bottom: 1rem; }
+    </style>
+  </head>
+  <body>
+    <h1><%= title %></h1>
+
+    <form method="post" action="/event" novalidate>
+
+      <div class="field">
+        <label for="titulo">Título do evento*</label><br />
+        <input id="titulo" name="titulo" type="text" value="<%= data.titulo || '' %>" />
+        <% if (errors.titulo) { %><div class="error"><%= errors.titulo.msg %></div><% } %>
+      </div>
+
+      <div class="field">
+        <label for="descricao">Descrição*</label><br />
+        <textarea id="descricao" name="descricao" rows="5"><%= data.descricao || '' %></textarea>
+        <% if (errors.descricao) { %><div class="error"><%= errors.descricao.msg %></div><% } %>
+      </div>
+
+      <div class="field">
+        <label for="data">Data*</label><br />
+        <input id="data" name="data" type="date" value="<%= data.data ? data.data.toISOString().split('T')[0] : '' %>" />
+        <% if (errors.data) { %><div class="error"><%= errors.data.msg %></div><% } %>
+      </div>
+
+      <div class="field">
+        <label for="hora">Hora*</label><br />
+        <input id="hora" name="hora" type="time" value="<%= data.hora || '' %>" />
+        <% if (errors.hora) { %><div class="error"><%= errors.hora.msg %></div><% } %>
+      </div>
+
+      <div class="field">
+        <label for="categoria">Categoria*</label><br />
+        <select id="categoria" name="categoria">
+          <option value="">Selecione...</option>
+          <option value="palestra" <%= data.categoria === 'palestra' ? 'selected' : '' %>>Palestra</option>
+          <option value="workshop" <%= data.categoria === 'workshop' ? 'selected' : '' %>>Workshop</option>
+          <option value="curso" <%= data.categoria === 'curso' ? 'selected' : '' %>>Curso</option>
+          <option value="webinar" <%= data.categoria === 'webinar' ? 'selected' : '' %>>Webinar</option>
+        </select>
+        <% if (errors.categoria) { %><div class="error"><%= errors.categoria.msg %></div><% } %>
+      </div>
+
+      <div class="field">
+        <label for="vagas">Número de vagas*</label><br />
+        <input id="vagas" name="vagas" type="number" min="1" max="500" value="<%= data.vagas || '' %>" />
+        <% if (errors.vagas) { %><div class="error"><%= errors.vagas.msg %></div><% } %>
+      </div>
+
+      <fieldset class="field">
+        <legend>Público-alvo*</legend>
+        <% const grupos = ['estudantes', 'profissionais', 'empresas', 'publico-geral']; %>
+        <% grupos.forEach(opt => { %>
+          <label>
+            <input type="checkbox" name="publico" value="<%= opt %>"
+              <%= data.publico && data.publico.includes(opt) ? 'checked' : '' %> />
+            <%= opt.replace('-', ' ') %>
+          </label><br />
+        <% }) %>
+        <% if (errors.publico) { %><div class="error"><%= errors.publico.msg %></div><% } %>
+      </fieldset>
+
+      <div class="field">
+        <label for="site">Site oficial (opcional)</label><br />
+        <input id="site" name="site" type="url" value="<%= data.site || '' %>" />
+        <% if (errors.site) { %><div class="error"><%= errors.site.msg %></div><% } %>
+      </div>
+
+      <div class="field">
+        <label><input type="checkbox" name="aceite" <%= data.aceite ? 'checked' : '' %> /> Concordo com os termos*</label>
+        <% if (errors.aceite) { %><div class="error"><%= errors.aceite.msg %></div><% } %>
+      </div>
+
+      <button type="submit">Cadastrar Evento</button>
+    </form>
+  </body>
+</html>
