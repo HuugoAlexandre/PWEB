@@ -27,7 +27,7 @@ router.get('/list', (req, res) => {
       interesses, 
       mensagem, 
       criado_em
-    FROM contatos
+    FROM contacts
     ORDER BY criado_em DESC
   `).all();
 
@@ -37,6 +37,24 @@ router.get('/list', (req, res) => {
   });
 });
 
+// POST /contato/:id/delete – exclui um contato pelo ID
+router.post('/:id/delete', (req, res) => {
+  const id = parseInt(req.params.id, 10);
+
+  if (Number.isNaN(id)) {
+    // ID inválido → só volta
+    return res.redirect('/contact/list');
+  }
+
+  const info = db.prepare('DELETE FROM contacts WHERE id = ?').run(id);
+
+  // Opcional: você pode testar se algo foi deletado
+  // if (info.changes === 0) {
+  //   console.log('Nenhum registro com esse ID');
+  // }
+
+  return res.redirect('/contact/list');
+});
 
 /**
  * POST /contato – valida, sanitiza e decide: erro -> reexibir formulário; sucesso -> página de sucesso
@@ -116,7 +134,7 @@ router.post(
 
     // Aqui você poderia persistir no banco, enviar e-mail, etc.
     const stmt = db.prepare(`
-      INSERT INTO contatos (
+      INSERT INTO contacts (
         nome,
         email,
         idade,
