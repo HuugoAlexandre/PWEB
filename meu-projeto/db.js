@@ -12,14 +12,14 @@ if (!fs.existsSync(dbDir)) {
 }
 
 // Caminho do arquivo do banco
-const dbPath = path.join(dbDir, 'contatos.db');
+const dbPath = path.join(dbDir, 'contacts.db');
 
 // Inicializa o banco SQLite
 const db = new Database(dbPath);
 
 // Criação da tabela (executa uma vez e garante a estrutura)
 db.prepare(`
-  CREATE TABLE IF NOT EXISTS contatos (
+  CREATE TABLE IF NOT EXISTS contacts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nome TEXT NOT NULL,
     email TEXT NOT NULL,
