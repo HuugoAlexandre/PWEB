@@ -58,6 +58,7 @@
             <th>Interesses</th>
             <th>Mensagem</th>
             <th>Criado em</th>
+            <th>Ações</th>
           </tr>
         </thead>
         <tbody>
@@ -77,6 +78,11 @@
               </td>
               <td><%= c.mensagem %></td>
               <td><%= c.criado_em %></td>
+              <td class="actions">
+                <form action="/contact/<%= c.id %>/delete" method="post" onsubmit="return confirm('Tem certeza que quer exlcuir <%= c.nome %>?');">
+                  <button type="submit">Excluir</button>
+                </form>
+              </td>
             </tr>
           <% }) %>
         </tbody>
