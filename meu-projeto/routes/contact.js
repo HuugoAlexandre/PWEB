@@ -37,6 +37,28 @@ router.get('/list', (req, res) => {
   });
 });
 
+// GET /contato/:id/edit – exibe o formulário para editar
+router.get('/:id/edit', (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (Number.isNaN(id)) {
+    return res.redirect('/contact/list');
+  }
+
+  const contato = db.prepare('SELECT * FROM contacts WHERE id = ?').get(id);
+  if (!contato) {
+    return res.redirect('/contact/list');
+  }
+
+  // Converte interesses de string para array
+  contato.interesses = contato.interesses ? contato.interesses.split(',') : [];
+
+  res.render('contact-edit', {
+    title: `Editar contato: ${contato.nome}`,
+    data: contato,
+    errors: {}
+  });
+});
+
 // POST /contato/:id/delete – exclui um contato pelo ID
 router.post('/:id/delete', (req, res) => {
   const id = parseInt(req.params.id, 10);
@@ -174,5 +196,92 @@ router.post(
 
   }
 );
+
+// POST /contato/:id/edit – atualiza o contato
+router.post('/:id/edit', [
+  // validações usando express-validator, mesmas da criação
+  body('nome')
+    .trim()
+    .isLength({ min: 3, max: 60 })
+    .withMessage('Nome deve ter entre 3 e 60 caracteres.')
+    .matches(/^[A-Za-zÀ-ÖØ-öø-ÿ' -]+$/)
+    .withMessage('Nome contém caracteres inválidos.')
+    .escape(),
+  body('email')
+    .trim()
+    .isEmail()
+    .withMessage('E-mail inválido.')
+    .normalizeEmail(),
+  body('idade')
+    .trim()
+    .optional({ checkFalsy: true })
+    .isInt({ min: 1, max: 120 })
+    .withMessage('Idade deve ser um inteiro entre 1 e 120.')
+    .toInt(),
+  body('genero')
+    .isIn(['', 'feminino', 'masculino', 'nao-binario', 'prefiro-nao-informar'])
+    .withMessage('Gênero inválido.'),
+  body('interesses')
+    .optional({ checkFalsy: true })
+    .customSanitizer(v => (Array.isArray(v) ? v : v ? [v] : []))
+    .custom(arr => {
+      const valid = ['node', 'express', 'ejs', 'frontend', 'backend'];
+      return arr.every(x => valid.includes(x));
+    })
+    .withMessage('Interesse inválido.'),
+  body('mensagem')
+    .trim()
+    .isLength({ min: 10, max: 500 })
+    .withMessage('Mensagem deve ter entre 10 e 500 caracteres.')
+    .escape(),
+  body('aceite')
+    .equals('on')
+    .withMessage('Você deve aceitar os termos para continuar.')
+], (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const errors = validationResult(req);
+  const data = {
+    id,
+    nome: req.body.nome,
+    email: req.body.email,
+    idade: req.body.idade,
+    genero: req.body.genero || '',
+    interesses: req.body.interesses || [],
+    mensagem: req.body.mensagem,
+    aceite: req.body.aceite === 'on'
+  };
+
+  if (!errors.isEmpty()) {
+    return res.status(400).render('contact-edit', {
+      title: `Editar contato: ${data.nome}`,
+      data,
+      errors: errors.mapped()
+    });
+  }
+
+  // Atualiza no banco
+  db.prepare(`
+    UPDATE contacts SET
+      nome = @nome,
+      email = @email,
+      idade = @idade,
+      genero = @genero,
+      interesses = @interesses,
+      mensagem = @mensagem,
+      aceite = @aceite
+    WHERE id = @id
+  `).run({
+    id: data.id,
+    nome: data.nome,
+    email: data.email,
+    idade: data.idade || null,
+    genero: data.genero || null,
+    interesses: Array.isArray(data.interesses) ? data.interesses.join(',') : '',
+    mensagem: data.mensagem,
+    aceite: data.aceite ? 1 : 0
+  });
+
+  res.redirect('/contact/list');
+});
 
 module.exports = router;
