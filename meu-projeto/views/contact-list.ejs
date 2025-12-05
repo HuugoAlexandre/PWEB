@@ -82,7 +82,7 @@
               <td><%= c.genero || '-' %></td>
               <td>
                 <% if (c.interesses) { %>
-                  <%= c.interesses.split(',').join(', ') %>
+                  <%= Array.isArray(c.interesses) ? c.interesses.join(', ') : c.interesses %>
                 <% } else { %>
                   -
                 <% } %>

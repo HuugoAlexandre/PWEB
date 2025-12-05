@@ -1,287 +1,46 @@
-var express = require('express');
-var router = express.Router();
-const { body, validationResult } = require('express-validator');
-const db = require('../db');
+const express = require('express');
+const router = express.Router();
+const { validate } = require('../middlewares/validate');
+const asyncHandler = require('../middlewares/asyncHandler');
+const container = require('../container');
 
-/**
- * GET /contato – exibe o formulário.
- * Enviamos 'data' vazio e 'errors' vazio para facilitar o template.
- */
-router.get('/', (req, res) => {
-  res.render('contact', {
-    title: 'Formulário de Contato',
-    data: {},
-    errors: {}
-  });
-});
+const ContactController = require('../controllers/ContactController');
+const controller = new ContactController(container.contactService);
 
-// GET /contato/lista – tabela com os contatos cadastrados
-router.get('/list', (req, res) => {
-  const rows = db.prepare(`
-    SELECT 
-      id, 
-      nome, 
-      email, 
-      idade, 
-      genero, 
-      interesses, 
-      mensagem, 
-      criado_em
-    FROM contacts
-    ORDER BY criado_em DESC
-  `).all();
-
-  res.render('contact-list', {
-    title: 'Lista de Contatos',
-    contacts: rows
-  });
-});
-
-// GET /contato/:id/edit – exibe o formulário para editar
-router.get('/:id/edit', (req, res) => {
-  const id = parseInt(req.params.id, 10);
-  if (Number.isNaN(id)) {
-    return res.redirect('/contact/list');
-  }
-
-  const contato = db.prepare('SELECT * FROM contacts WHERE id = ?').get(id);
-  if (!contato) {
-    return res.redirect('/contact/list');
-  }
-
-  // Converte interesses de string para array
-  contato.interesses = contato.interesses ? contato.interesses.split(',') : [];
-
-  res.render('contact-edit', {
-    title: `Editar contato: ${contato.nome}`,
-    data: contato,
-    errors: {}
-  });
-});
-
-// POST /contato/:id/delete – exclui um contato pelo ID
-router.post('/:id/delete', (req, res) => {
-  const id = parseInt(req.params.id, 10);
-
-  if (Number.isNaN(id)) {
-    // ID inválido → só volta
-    return res.redirect('/contact/list');
-  }
-
-  const info = db.prepare('DELETE FROM contacts WHERE id = ?').run(id);
-
-  // Opcional: você pode testar se algo foi deletado
-  // if (info.changes === 0) {
-  //   console.log('Nenhum registro com esse ID');
-  // }
-
-  return res.redirect('/contact/list');
-});
-
-/**
- * POST /contato – valida, sanitiza e decide: erro -> reexibir formulário; sucesso -> página de sucesso
- */
-router.post(
+// Create
+router.get(
   '/',
-  // Validações e sanitizações
-  [
-    body('nome')
-      .trim()
-      .isLength({ min: 3, max: 60 })
-      .withMessage('Nome deve ter entre 3 e 60 caracteres.')
-      .matches(/^[A-Za-zÀ-ÖØ-öø-ÿ' -]+$/)
-      .withMessage('Nome contém caracteres inválidos.')
-      .escape(),
-
-    body('email')
-      .trim()
-      .isEmail()
-      .withMessage('E-mail inválido.')
-      .normalizeEmail(),
-
-    body('idade')
-      .trim()
-      .optional({ checkFalsy: true })
-      .isInt({ min: 1, max: 120 })
-      .withMessage('Idade deve ser um inteiro entre 1 e 120.')
-      .toInt(),
-
-    body('genero')
-      .isIn(['', 'feminino', 'masculino', 'nao-binario', 'prefiro-nao-informar'])
-      .withMessage('Gênero inválido.'),
-
-    body('interesses')
-      .optional({ checkFalsy: true })
-      .customSanitizer(v => (Array.isArray(v) ? v : v ? [v] : [])) // sempre array
-      .custom(arr => {
-        const valid = ['node', 'express', 'ejs', 'frontend', 'backend'];
-        return arr.every(x => valid.includes(x));
-      })
-      .withMessage('Interesse inválido.'),
-
-    body('mensagem')
-      .trim()
-      .isLength({ min: 10, max: 500 })
-      .withMessage('Mensagem deve ter entre 10 e 500 caracteres.')
-      .escape(),
-
-    body('aceite')
-      .equals('on')
-      .withMessage('Você deve aceitar os termos para continuar.')
-  ],
-  (req, res) => {
-    const errors = validationResult(req);
-
-    // Para repovoar o formulário, mantemos os dados originais (com algumas sanitizações acima)
-    const data = {
-      nome: req.body.nome,
-      email: req.body.email,
-      idade: req.body.idade,
-      genero: req.body.genero || '',
-      interesses: req.body.interesses || [],
-      mensagem: req.body.mensagem,
-      aceite: req.body.aceite === 'on'
-    };
-
-    if (!errors.isEmpty()) {
-      // Mapeamos erros por campo para facilitar no EJS
-      const mapped = errors.mapped(); // { campo: { msg, param, ... } }
-
-      return res.status(400).render('contact', {
-        title: 'Formulário de Contato',
-        data,
-        errors: mapped
-      });
-    }
-
-    // Aqui você poderia persistir no banco, enviar e-mail, etc.
-    const stmt = db.prepare(`
-      INSERT INTO contacts (
-        nome,
-        email,
-        idade,
-        genero,
-        interesses,
-        mensagem,
-        aceite
-      )
-      VALUES (
-        @nome,
-        @email,
-        @idade,
-        @genero,
-        @interesses,
-        @mensagem,
-        @aceite
-      )
-    `);
-
-    stmt.run({
-      nome: data.nome,
-      email: data.email,
-      idade: data.idade || null,
-      genero: data.genero || null,
-      interesses: Array.isArray(data.interesses)
-        ? data.interesses.join(',')
-        : (data.interesses || ''),
-      mensagem: data.mensagem,
-      aceite: data.aceite ? 1 : 0
-    });
-
-    // Depois de inserir, mostramos a página de sucesso
-    return res.render('sucess-contact', {
-      title: 'Enviado com sucesso',
-      data
-    });
-
-  }
+  asyncHandler(controller.form.bind(controller))
 );
 
-// POST /contato/:id/edit – atualiza o contato
-router.post('/:id/edit', [
-  // validações usando express-validator, mesmas da criação
-  body('nome')
-    .trim()
-    .isLength({ min: 3, max: 60 })
-    .withMessage('Nome deve ter entre 3 e 60 caracteres.')
-    .matches(/^[A-Za-zÀ-ÖØ-öø-ÿ' -]+$/)
-    .withMessage('Nome contém caracteres inválidos.')
-    .escape(),
-  body('email')
-    .trim()
-    .isEmail()
-    .withMessage('E-mail inválido.')
-    .normalizeEmail(),
-  body('idade')
-    .trim()
-    .optional({ checkFalsy: true })
-    .isInt({ min: 1, max: 120 })
-    .withMessage('Idade deve ser um inteiro entre 1 e 120.')
-    .toInt(),
-  body('genero')
-    .isIn(['', 'feminino', 'masculino', 'nao-binario', 'prefiro-nao-informar'])
-    .withMessage('Gênero inválido.'),
-  body('interesses')
-    .optional({ checkFalsy: true })
-    .customSanitizer(v => (Array.isArray(v) ? v : v ? [v] : []))
-    .custom(arr => {
-      const valid = ['node', 'express', 'ejs', 'frontend', 'backend'];
-      return arr.every(x => valid.includes(x));
-    })
-    .withMessage('Interesse inválido.'),
-  body('mensagem')
-    .trim()
-    .isLength({ min: 10, max: 500 })
-    .withMessage('Mensagem deve ter entre 10 e 500 caracteres.')
-    .escape(),
-  body('aceite')
-    .equals('on')
-    .withMessage('Você deve aceitar os termos para continuar.')
-], (req, res) => {
-  const id = parseInt(req.params.id, 10);
-  const errors = validationResult(req);
-  const data = {
-    id,
-    nome: req.body.nome,
-    email: req.body.email,
-    idade: req.body.idade,
-    genero: req.body.genero || '',
-    interesses: req.body.interesses || [],
-    mensagem: req.body.mensagem,
-    aceite: req.body.aceite === 'on'
-  };
+router.post(
+  '/',
+  validate(controller.regrasCriar()),
+  asyncHandler(controller.criar.bind(controller))
+);
 
-  if (!errors.isEmpty()) {
-    return res.status(400).render('contact-edit', {
-      title: `Editar contato: ${data.nome}`,
-      data,
-      errors: errors.mapped()
-    });
-  }
+// Read
+router.get(
+  '/list',
+  asyncHandler(controller.lista.bind(controller))
+);
 
-  // Atualiza no banco
-  db.prepare(`
-    UPDATE contacts SET
-      nome = @nome,
-      email = @email,
-      idade = @idade,
-      genero = @genero,
-      interesses = @interesses,
-      mensagem = @mensagem,
-      aceite = @aceite
-    WHERE id = @id
-  `).run({
-    id: data.id,
-    nome: data.nome,
-    email: data.email,
-    idade: data.idade || null,
-    genero: data.genero || null,
-    interesses: Array.isArray(data.interesses) ? data.interesses.join(',') : '',
-    mensagem: data.mensagem,
-    aceite: data.aceite ? 1 : 0
-  });
+// Update
+router.get(
+  '/:id/edit',
+  asyncHandler(controller.editarForm.bind(controller))
+);
 
-  res.redirect('/contact/list');
-});
+router.post(
+  '/:id/edit',
+  validate(controller.regrasEditar()),
+  asyncHandler(controller.editar.bind(controller))
+);
+
+// Delete
+router.post(
+  '/:id/delete',
+  asyncHandler(controller.excluir.bind(controller))
+);
 
 module.exports = router;
